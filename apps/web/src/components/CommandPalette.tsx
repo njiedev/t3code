@@ -129,7 +129,8 @@ import {
   isUnsupportedWindowsProjectPath,
   resolveProjectPathForDispatch,
 } from "../lib/projectPaths";
-import { onOpenCommandPalette } from "../commandPaletteBus";
+import { onOpenCommandPalette, openCommandPalette } from "../commandPaletteBus";
+import { NewProjectDialog } from "./NewProjectDialog";
 import { isPreviewFocused } from "../lib/previewFocus";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import {
@@ -472,6 +473,7 @@ function projectFavicon(project: Project) {
 
 export function CommandPalette({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [state, dispatch] = useReducer(reduceCommandPaletteUiState, {
     open: false,
     mode: "command",
@@ -601,7 +603,8 @@ export function CommandPalette({ children }: { children: ReactNode }) {
         if (detail.open === "new-thread-in") {
           openNewThreadIn();
         } else if (detail.open === "add-project") {
-          openAddProject();
+          setOpen(false);
+          setProjectDialogOpen(true);
         } else if (detail.query !== undefined) {
           dispatch({
             _tag: "OpenSearch",
@@ -612,7 +615,7 @@ export function CommandPalette({ children }: { children: ReactNode }) {
           setOpen(true);
         }
       }),
-    [openAddProject, openNewThreadIn, setOpen],
+    [openNewThreadIn, setOpen],
   );
 
   return (
@@ -629,7 +632,7 @@ export function CommandPalette({ children }: { children: ReactNode }) {
         }}
       >
         {/* Block background focus calls for the entire time the palette is open. */}
-        <div className="contents" inert={state.open}>
+        <div className="contents" inert={state.open || projectDialogOpen}>
           {children}
         </div>
         <CommandPaletteDialog
@@ -640,6 +643,15 @@ export function CommandPalette({ children }: { children: ReactNode }) {
           clearOpenIntent={clearOpenIntent}
         />
       </CommandDialog>
+      {projectDialogOpen ? (
+        <NewProjectDialog
+          onClose={() => setProjectDialogOpen(false)}
+          onOtherSources={() => {
+            setProjectDialogOpen(false);
+            openAddProject();
+          }}
+        />
+      ) : null}
     </ComposerHandleContext>
   );
 }
@@ -1838,8 +1850,7 @@ function OpenCommandPaletteDialog(props: {
   // New project starts on this device (options list it first); the name step
   // lists the other machines when there is a choice.
   const openNewProjectFlow = () => {
-    const firstOption = newProjectEnvironmentOptions[0];
-    if (firstOption) startNewProject(firstOption.environmentId, null);
+    openCommandPalette({ open: "add-project" });
   };
 
   useLayoutEffect(() => {
@@ -2100,7 +2111,7 @@ function OpenCommandPaletteDialog(props: {
     icon: <FolderPlusIcon className={ITEM_ICON_CLASS} />,
     keepOpen: true,
     run: async () => {
-      openAddProjectFlow();
+      openCommandPalette({ open: "add-project" });
     },
   });
 
